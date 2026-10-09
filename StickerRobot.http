@@ -1,0 +1,6 @@
+@StickerRobot_HostAddress = http://localhost:5174
+
+GET {{StickerRobot_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
