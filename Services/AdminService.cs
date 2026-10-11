@@ -52,12 +52,35 @@ public class AdminService : IAdminService
             return (null, $"Username '{request.Username}' is already taken.");
         }
 
+        var rawRole = request.Role?.Trim();
+        string role;
+        if (string.IsNullOrWhiteSpace(rawRole))
+        {
+            role = "admin";
+        }
+        else if (rawRole.Equals("admin", StringComparison.OrdinalIgnoreCase))
+        {
+            role = "admin";
+        }
+        else if (rawRole.Equals("SuperAdmin", StringComparison.OrdinalIgnoreCase))
+        {
+            role = "SuperAdmin";
+        }
+        else if (rawRole.Equals("Manager", StringComparison.OrdinalIgnoreCase))
+        {
+            role = "Manager";
+        }
+        else
+        {
+            return (null, $"Role '{request.Role}' is invalid. Allowed roles are: 'admin', 'SuperAdmin', 'Manager'.");
+        }
+
         var admin = new Admin
         {
             Username = request.Username,
             PasswordHash = BCrypt.Net.BCrypt.HashPassword(request.Password),
             Email = request.Email,
-            Role = string.IsNullOrWhiteSpace(request.Role) ? "Admin" : request.Role
+            Role = role
         };
 
         _context.Admins.Add(admin);
@@ -94,7 +117,28 @@ public class AdminService : IAdminService
         }
 
         if (request.Email != null) admin.Email = request.Email;
-        if (request.Role != null) admin.Role = request.Role;
+        if (request.Role != null)
+        {
+            var rawRole = request.Role.Trim();
+            string role;
+            if (rawRole.Equals("admin", StringComparison.OrdinalIgnoreCase))
+            {
+                role = "admin";
+            }
+            else if (rawRole.Equals("SuperAdmin", StringComparison.OrdinalIgnoreCase))
+            {
+                role = "SuperAdmin";
+            }
+            else if (rawRole.Equals("Manager", StringComparison.OrdinalIgnoreCase))
+            {
+                role = "Manager";
+            }
+            else
+            {
+                return (null, $"Role '{request.Role}' is invalid. Allowed roles are: 'admin', 'SuperAdmin', 'Manager'.");
+            }
+            admin.Role = role;
+        }
 
         await _context.SaveChangesAsync();
 

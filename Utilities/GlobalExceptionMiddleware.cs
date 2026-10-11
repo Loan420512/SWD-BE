@@ -22,7 +22,8 @@ public class GlobalExceptionMiddleware
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "An unhandled exception occurred: {Message}", ex.Message);
+            var innerMsg = ex.InnerException?.Message;
+            _logger.LogError(ex, "An unhandled exception occurred: {Message}. InnerException: {InnerMessage}", ex.Message, innerMsg);
             await HandleExceptionAsync(context, ex);
         }
     }
@@ -32,9 +33,13 @@ public class GlobalExceptionMiddleware
         context.Response.ContentType = "application/json";
         context.Response.StatusCode = (int)HttpStatusCode.InternalServerError;
 
+        var fullErrorMessage = exception.InnerException != null
+            ? $"{exception.Message} (Inner: {exception.InnerException.Message})"
+            : exception.Message;
+
         var response = ApiResponse<object>.ErrorResponse(
             "An error occurred while processing your request.",
-            new { detail = exception.Message }
+            new { detail = fullErrorMessage }
         );
 
         var options = new JsonSerializerOptions

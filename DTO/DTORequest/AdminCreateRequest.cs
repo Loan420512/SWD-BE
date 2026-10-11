@@ -17,5 +17,5 @@ public class AdminCreateRequest
     public string? Email { get; set; }
 
     [MaxLength(30)]
-    public string? Role { get; set; } = "Admin";
+    public string? Role { get; set; } = "admin";
 }
