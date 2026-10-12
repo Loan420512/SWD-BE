@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using StickerRobot.Constants;
 using StickerRobot.Data;
 using StickerRobot.DTO.DTORequest;
 using StickerRobot.DTO.DTOResponse;
@@ -57,13 +58,26 @@ public class StaffService : IStaffService
             return (null, $"Admin with ID {request.AdminId} does not exist.");
         }
 
+        string? position = request.Position?.Trim();
+        if (!string.IsNullOrWhiteSpace(position))
+        {
+            if (position.Equals(StaffPosition.Support, StringComparison.OrdinalIgnoreCase))
+                position = StaffPosition.Support;
+            else if (position.Equals(StaffPosition.Operator, StringComparison.OrdinalIgnoreCase))
+                position = StaffPosition.Operator;
+            else if (position.Equals(StaffPosition.Designer, StringComparison.OrdinalIgnoreCase))
+                position = StaffPosition.Designer;
+            else
+                return (null, $"Position '{request.Position}' is invalid. Allowed positions are: '{StaffPosition.Support}', '{StaffPosition.Operator}', '{StaffPosition.Designer}'.");
+        }
+
         var staff = new Staff
         {
             AdminId = request.AdminId,
             FullName = request.FullName,
             EmployeeCode = request.EmployeeCode,
             Phone = request.Phone,
-            Position = request.Position,
+            Position = position,
             IsActive = request.IsActive ?? true
         };
 
@@ -98,7 +112,22 @@ public class StaffService : IStaffService
         if (request.FullName != null) staff.FullName = request.FullName;
         if (request.EmployeeCode != null) staff.EmployeeCode = request.EmployeeCode;
         if (request.Phone != null) staff.Phone = request.Phone;
-        if (request.Position != null) staff.Position = request.Position;
+        if (request.Position != null)
+        {
+            string? position = request.Position.Trim();
+            if (!string.IsNullOrWhiteSpace(position))
+            {
+                if (position.Equals(StaffPosition.Support, StringComparison.OrdinalIgnoreCase))
+                    position = StaffPosition.Support;
+                else if (position.Equals(StaffPosition.Operator, StringComparison.OrdinalIgnoreCase))
+                    position = StaffPosition.Operator;
+                else if (position.Equals(StaffPosition.Designer, StringComparison.OrdinalIgnoreCase))
+                    position = StaffPosition.Designer;
+                else
+                    return (null, $"Position '{request.Position}' is invalid. Allowed positions are: '{StaffPosition.Support}', '{StaffPosition.Operator}', '{StaffPosition.Designer}'.");
+            }
+            staff.Position = position;
+        }
         if (request.IsActive.HasValue) staff.IsActive = request.IsActive;
 
         await _context.SaveChangesAsync();

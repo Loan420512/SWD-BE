@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using StickerRobot.Constants;
 
 namespace StickerRobot.DTO.DTORequest;
 
@@ -17,5 +18,5 @@ public class AdminCreateRequest
     public string? Email { get; set; }
 
     [MaxLength(30)]
-    public string? Role { get; set; } = "admin";
+    public string? Role { get; set; } = UserRoles.Admin;
 }

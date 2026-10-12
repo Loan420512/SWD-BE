@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using StickerRobot.Constants;
 using StickerRobot.Data;
 using StickerRobot.DTO.DTORequest;
 using StickerRobot.DTO.DTOResponse;
@@ -78,7 +79,7 @@ public class RefundTransactionService : IRefundTransactionService
             PaymentId = request.PaymentId,
             RefundAmount = request.RefundAmount,
             Reason = request.Reason,
-            Status = string.IsNullOrWhiteSpace(request.Status) ? "Pending" : request.Status,
+            Status = string.IsNullOrWhiteSpace(request.Status) ? RefundStatus.Pending : request.Status,
             CreatedAt = DateTime.UtcNow
         };
 

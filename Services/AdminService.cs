@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using StickerRobot.Constants;
 using StickerRobot.Data;
 using StickerRobot.DTO.DTORequest;
 using StickerRobot.DTO.DTOResponse;
@@ -56,23 +57,23 @@ public class AdminService : IAdminService
         string role;
         if (string.IsNullOrWhiteSpace(rawRole))
         {
-            role = "admin";
+            role = UserRoles.Admin;
         }
-        else if (rawRole.Equals("admin", StringComparison.OrdinalIgnoreCase))
+        else if (rawRole.Equals(UserRoles.Admin, StringComparison.OrdinalIgnoreCase))
         {
-            role = "admin";
+            role = UserRoles.Admin;
         }
-        else if (rawRole.Equals("SuperAdmin", StringComparison.OrdinalIgnoreCase))
+        else if (rawRole.Equals(UserRoles.SuperAdmin, StringComparison.OrdinalIgnoreCase))
         {
-            role = "SuperAdmin";
+            role = UserRoles.SuperAdmin;
         }
-        else if (rawRole.Equals("Manager", StringComparison.OrdinalIgnoreCase))
+        else if (rawRole.Equals(UserRoles.Manager, StringComparison.OrdinalIgnoreCase))
         {
-            role = "Manager";
+            role = UserRoles.Manager;
         }
         else
         {
-            return (null, $"Role '{request.Role}' is invalid. Allowed roles are: 'admin', 'SuperAdmin', 'Manager'.");
+            return (null, $"Role '{request.Role}' is invalid. Allowed roles are: '{UserRoles.Admin}', '{UserRoles.SuperAdmin}', '{UserRoles.Manager}'.");
         }
 
         var admin = new Admin
@@ -121,21 +122,21 @@ public class AdminService : IAdminService
         {
             var rawRole = request.Role.Trim();
             string role;
-            if (rawRole.Equals("admin", StringComparison.OrdinalIgnoreCase))
+            if (rawRole.Equals(UserRoles.Admin, StringComparison.OrdinalIgnoreCase))
             {
-                role = "admin";
+                role = UserRoles.Admin;
             }
-            else if (rawRole.Equals("SuperAdmin", StringComparison.OrdinalIgnoreCase))
+            else if (rawRole.Equals(UserRoles.SuperAdmin, StringComparison.OrdinalIgnoreCase))
             {
-                role = "SuperAdmin";
+                role = UserRoles.SuperAdmin;
             }
-            else if (rawRole.Equals("Manager", StringComparison.OrdinalIgnoreCase))
+            else if (rawRole.Equals(UserRoles.Manager, StringComparison.OrdinalIgnoreCase))
             {
-                role = "Manager";
+                role = UserRoles.Manager;
             }
             else
             {
-                return (null, $"Role '{request.Role}' is invalid. Allowed roles are: 'admin', 'SuperAdmin', 'Manager'.");
+                return (null, $"Role '{request.Role}' is invalid. Allowed roles are: '{UserRoles.Admin}', '{UserRoles.SuperAdmin}', '{UserRoles.Manager}'.");
             }
             admin.Role = role;
         }

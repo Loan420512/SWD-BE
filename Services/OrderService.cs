@@ -1,4 +1,6 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
+using StickerRobot.Configurations;
 using StickerRobot.Constants;
 using StickerRobot.Data;
 using StickerRobot.DTO.DTORequest;
@@ -11,10 +13,12 @@ namespace StickerRobot.Services;
 public class OrderService : IOrderService
 {
     private readonly StickerRobotDbContext _context;
+    private readonly OrderSettings _orderSettings;
 
-    public OrderService(StickerRobotDbContext context)
+    public OrderService(StickerRobotDbContext context, IOptions<OrderSettings> orderSettings)
     {
         _context = context;
+        _orderSettings = orderSettings.Value;
     }
 
     public async Task<IEnumerable<OrderResponse>> GetAllAsync()
@@ -70,7 +74,7 @@ public class OrderService : IOrderService
 
         var order = new Order
         {
-            OrderCode = string.IsNullOrWhiteSpace(request.OrderCode) ? $"ORD-{Guid.NewGuid().ToString("N")[..8].ToUpper()}" : request.OrderCode,
+            OrderCode = string.IsNullOrWhiteSpace(request.OrderCode) ? $"{_orderSettings.OrderCodePrefix}{Guid.NewGuid().ToString("N")[..8].ToUpper()}" : request.OrderCode,
             CustomerId = request.CustomerId,
             PhoneCaseId = request.PhoneCaseId,
             DesignTemplateId = request.DesignTemplateId,

@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using StickerRobot.Constants;
 
 namespace StickerRobot.DTO.DTORequest;
 
@@ -15,5 +16,5 @@ public class OrderCreateRequest
     public decimal? TotalAmount { get; set; }
 
     [MaxLength(30)]
-    public string? Status { get; set; } = "Pending";
+    public string? Status { get; set; } = OrderStatus.Pending;
 }

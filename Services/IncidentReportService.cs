@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using StickerRobot.Constants;
 using StickerRobot.Data;
 using StickerRobot.DTO.DTORequest;
 using StickerRobot.DTO.DTOResponse;
@@ -60,7 +61,7 @@ public class IncidentReportService : IIncidentReportService
             StaffId = request.StaffId,
             IncidentType = request.IncidentType,
             Description = request.Description,
-            Status = string.IsNullOrWhiteSpace(request.Status) ? "Open" : request.Status,
+            Status = string.IsNullOrWhiteSpace(request.Status) ? IncidentStatus.Open : request.Status,
             ReportedAt = DateTime.UtcNow
         };
 

@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using StickerRobot.Constants;
 
 namespace StickerRobot.DTO.DTORequest;
 
@@ -12,5 +13,5 @@ public class IncidentReportCreateRequest
     public string? Description { get; set; }
 
     [MaxLength(30)]
-    public string? Status { get; set; } = "Open";
+    public string? Status { get; set; } = IncidentStatus.Open;
 }

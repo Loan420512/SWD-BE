@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using StickerRobot.Constants;
 using StickerRobot.Data;
 using StickerRobot.DTO.DTORequest;
 using StickerRobot.DTO.DTOResponse;
@@ -67,13 +68,23 @@ public class PaymentService : IPaymentService
             return (null, $"CashFlowAudit with ID {request.AuditId} does not exist.");
         }
 
+        var status = request.PaymentStatus?.Trim();
+        if (string.IsNullOrWhiteSpace(status))
+        {
+            status = PaymentStatus.Success;
+        }
+        else if (status.Equals("Paid", StringComparison.OrdinalIgnoreCase))
+        {
+            status = PaymentStatus.Success;
+        }
+
         var payment = new Payment
         {
             OrderId = request.OrderId,
             AuditId = request.AuditId,
             Amount = request.Amount,
             PaymentMethod = request.PaymentMethod,
-            PaymentStatus = string.IsNullOrWhiteSpace(request.PaymentStatus) ? "Pending" : request.PaymentStatus,
+            PaymentStatus = status,
             TransactionId = request.TransactionId,
             PaidAt = request.PaidAt ?? DateTime.UtcNow
         };
@@ -109,7 +120,15 @@ public class PaymentService : IPaymentService
         if (request.AuditId.HasValue) payment.AuditId = request.AuditId;
         if (request.Amount.HasValue) payment.Amount = request.Amount;
         if (request.PaymentMethod != null) payment.PaymentMethod = request.PaymentMethod;
-        if (request.PaymentStatus != null) payment.PaymentStatus = request.PaymentStatus;
+        if (request.PaymentStatus != null)
+        {
+            var status = request.PaymentStatus.Trim();
+            if (status.Equals("Paid", StringComparison.OrdinalIgnoreCase))
+            {
+                status = PaymentStatus.Success;
+            }
+            payment.PaymentStatus = status;
+        }
         if (request.TransactionId != null) payment.TransactionId = request.TransactionId;
         if (request.PaidAt.HasValue) payment.PaidAt = request.PaidAt;
 

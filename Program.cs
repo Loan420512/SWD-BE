@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.OpenApi.Models;
+using StickerRobot.Configurations;
 using StickerRobot.Data;
 using StickerRobot.Services;
 using StickerRobot.Services.Interfaces;
@@ -13,6 +14,32 @@ var connectionString = builder.Configuration.GetConnectionString("DefaultConnect
 
 builder.Services.AddDbContext<StickerRobotDbContext>(options =>
     options.UseSqlServer(connectionString));
+
+// Register Configuration Options (IOptions<T>)
+builder.Services.Configure<CorsOptions>(builder.Configuration.GetSection(CorsOptions.SectionName));
+builder.Services.Configure<JwtOptions>(builder.Configuration.GetSection(JwtOptions.SectionName));
+builder.Services.Configure<OrderSettings>(builder.Configuration.GetSection(OrderSettings.SectionName));
+
+// CORS Configuration
+var corsConfig = builder.Configuration.GetSection(CorsOptions.SectionName).Get<CorsOptions>();
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("DefaultCorsPolicy", policy =>
+    {
+        if (corsConfig?.AllowedOrigins != null && corsConfig.AllowedOrigins.Length > 0)
+        {
+            policy.WithOrigins(corsConfig.AllowedOrigins)
+                  .AllowAnyHeader()
+                  .AllowAnyMethod();
+        }
+        else
+        {
+            policy.AllowAnyOrigin()
+                  .AllowAnyHeader()
+                  .AllowAnyMethod();
+        }
+    });
+});
 
 // Register Application Services (Dependency Injection)
 builder.Services.AddScoped<IAdminService, AdminService>();
@@ -61,6 +88,8 @@ app.UseSwaggerUI(c =>
 });
 
 app.UseHttpsRedirection();
+
+app.UseCors("DefaultCorsPolicy");
 
 app.UseAuthorization();
 
