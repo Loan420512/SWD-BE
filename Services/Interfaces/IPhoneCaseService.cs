@@ -9,5 +9,5 @@ public interface IPhoneCaseService
     Task<PhoneCaseResponse?> GetByIdAsync(int id);
     Task<(PhoneCaseResponse? Data, string? ErrorMessage)> CreateAsync(PhoneCaseCreateRequest request);
     Task<(PhoneCaseResponse? Data, string? ErrorMessage)> UpdateAsync(int id, PhoneCaseUpdateRequest request);
-    Task<bool> DeleteAsync(int id);
+    Task<(bool Found, string? Blocked)> DeleteAsync(int id);
 }

@@ -85,13 +85,19 @@ public class PhoneModelService : IPhoneModelService
         };
     }
 
-    public async Task<bool> DeleteAsync(int id)
+    public async Task<(bool Found, string? Blocked)> DeleteAsync(int id)
     {
         var model = await _context.PhoneModels.FindAsync(id);
-        if (model == null) return false;
+        if (model == null) return (false, null);
+
+        var caseCount = await _context.PhoneCases.CountAsync(c => c.ModelId == id);
+        if (caseCount > 0)
+        {
+            return (true, "Mẫu máy này còn ốp. Chuyển hoặc xoá các ốp đó trước.");
+        }
 
         _context.PhoneModels.Remove(model);
         await _context.SaveChangesAsync();
-        return true;
+        return (true, null);
     }
 }

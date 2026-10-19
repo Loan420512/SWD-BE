@@ -72,6 +72,25 @@ public class OrderService : IOrderService
             return (null, $"DesignTemplate with ID {request.DesignTemplateId} does not exist.");
         }
 
+        var placed = request.DesignTemplateId.HasValue
+            ? await _context.StickerItems.AsNoTracking()
+                .Where(si => si.TemplateId == request.DesignTemplateId && si.StickerProductId != null)
+                .Select(si => new { si.StickerProduct!.Price, CaseId = si.Template.CaseId, CasePrice = si.Template.Case!.Price })
+                .ToListAsync()
+            : null;
+        if (placed is { Count: > 0 })
+        {
+            if (placed[0].CaseId != request.PhoneCaseId)
+            {
+                return (null, "Order case does not match the design case.");
+            }
+            var expected = (placed[0].CasePrice ?? 0) + placed.Sum(item => item.Price);
+            if (expected != request.TotalAmount)
+            {
+                return (null, "Total does not match case plus stickers.");
+            }
+        }
+
         var order = new Order
         {
             OrderCode = string.IsNullOrWhiteSpace(request.OrderCode) ? $"{_orderSettings.OrderCodePrefix}{Guid.NewGuid().ToString("N")[..8].ToUpper()}" : request.OrderCode,
@@ -79,7 +98,7 @@ public class OrderService : IOrderService
             PhoneCaseId = request.PhoneCaseId,
             DesignTemplateId = request.DesignTemplateId,
             TotalAmount = request.TotalAmount,
-            Status = string.IsNullOrWhiteSpace(request.Status) ? OrderStatus.Pending : request.Status,
+            Status = OrderStatus.Pending,
             CreatedAt = DateTime.UtcNow
         };
 
@@ -151,5 +170,92 @@ public class OrderService : IOrderService
         _context.Orders.Remove(order);
         await _context.SaveChangesAsync();
         return true;
+    }
+
+    public async Task<IEnumerable<AdminOrderResponse>> GetAdminListAsync()
+    {
+        return await _context.Orders.AsNoTracking()
+            .OrderByDescending(o => o.CreatedAt)
+            .Select(o => new AdminOrderResponse
+            {
+                Id = o.Id,
+                OrderCode = o.OrderCode!,
+                Status = o.Status,
+                TotalAmount = o.TotalAmount,
+                ModelLabel = o.PhoneCase!.Model!.Brand + " " + o.PhoneCase.Model.ModelName,
+                CaseLabel = o.PhoneCase.Material + " · " + o.PhoneCase.Color,
+                CaseSku = o.PhoneCase.Sku,
+                StickerName = o.DesignTemplate!.StickerItems.OrderBy(s => s.Id).Select(s => s.StickerName).FirstOrDefault(),
+                StickerImageUrl = o.DesignTemplate.StickerItems.OrderBy(s => s.Id).Select(s => s.StickerProduct!.ImageUrl).FirstOrDefault(),
+                PositionX = o.DesignTemplate.StickerItems.OrderBy(s => s.Id).Select(s => s.PositionX).FirstOrDefault(),
+                PositionY = o.DesignTemplate.StickerItems.OrderBy(s => s.Id).Select(s => s.PositionY).FirstOrDefault(),
+                RotationDeg = o.DesignTemplate.StickerItems.OrderBy(s => s.Id).Select(s => s.RotationDeg).FirstOrDefault(),
+                Placements = o.DesignTemplate.StickerItems.OrderBy(s => s.Id).Select(s => new OrderPlacementResponse
+                {
+                    Name = s.StickerName,
+                    ImageUrl = s.StickerProduct!.ImageUrl,
+                    PositionX = s.PositionX,
+                    PositionY = s.PositionY,
+                    RotationDeg = s.RotationDeg
+                }).ToList(),
+                PaymentMethod = o.Payment!.PaymentMethod,
+                PaymentStatus = o.Payment.PaymentStatus,
+                CustomerName = o.Customer!.FullName,
+                CustomerPhone = o.Customer.Phone,
+                CreatedAt = o.CreatedAt
+            })
+            .ToListAsync();
+    }
+
+    public async Task<PublicOrderResponse?> GetByCodeAsync(string orderCode)
+    {
+        return await _context.Orders.AsNoTracking()
+            .Where(o => o.OrderCode == orderCode)
+            .Select(o => new PublicOrderResponse
+            {
+                Id = o.Id,
+                OrderCode = o.OrderCode!,
+                Status = o.Status,
+                TotalAmount = o.TotalAmount,
+                ModelLabel = o.PhoneCase!.Model!.Brand + " " + o.PhoneCase.Model.ModelName,
+                CaseLabel = o.PhoneCase.Material + " · " + o.PhoneCase.Color,
+                CaseSku = o.PhoneCase.Sku,
+                StickerName = o.DesignTemplate!.StickerItems.OrderBy(s => s.Id).Select(s => s.StickerName).FirstOrDefault(),
+                StickerImageUrl = o.DesignTemplate.StickerItems.OrderBy(s => s.Id).Select(s => s.StickerProduct!.ImageUrl).FirstOrDefault(),
+                PositionX = o.DesignTemplate.StickerItems.OrderBy(s => s.Id).Select(s => s.PositionX).FirstOrDefault(),
+                PositionY = o.DesignTemplate.StickerItems.OrderBy(s => s.Id).Select(s => s.PositionY).FirstOrDefault(),
+                RotationDeg = o.DesignTemplate.StickerItems.OrderBy(s => s.Id).Select(s => s.RotationDeg).FirstOrDefault(),
+                Placements = o.DesignTemplate.StickerItems.OrderBy(s => s.Id).Select(s => new OrderPlacementResponse
+                {
+                    Name = s.StickerName,
+                    ImageUrl = s.StickerProduct!.ImageUrl,
+                    PositionX = s.PositionX,
+                    PositionY = s.PositionY,
+                    RotationDeg = s.RotationDeg
+                }).ToList(),
+                PaymentMethod = o.Payment!.PaymentMethod,
+                CreatedAt = o.CreatedAt
+            })
+            .FirstOrDefaultAsync();
+    }
+
+    private static readonly Dictionary<string, string[]> NextStatus = new()
+    {
+        [OrderStatus.Pending] = new[] { OrderStatus.Processing, OrderStatus.Cancelled },
+        [OrderStatus.Processing] = new[] { OrderStatus.Completed, OrderStatus.Cancelled },
+    };
+
+    public async Task<(bool Found, string? ErrorMessage)> SetStatusAsync(int id, string status)
+    {
+        var order = await _context.Orders.FindAsync(id);
+        if (order == null) return (false, null);
+        var current = order.Status ?? OrderStatus.Pending;
+        if (!NextStatus.TryGetValue(current, out var allowed) || !allowed.Contains(status))
+        {
+            return (true, $"Cannot move an order from {current} to {status}.");
+        }
+        order.Status = status;
+        await _context.SaveChangesAsync();
+        return (true, null);
     }
 }

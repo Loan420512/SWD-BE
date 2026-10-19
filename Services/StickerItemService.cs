@@ -4,6 +4,7 @@ using StickerRobot.DTO.DTORequest;
 using StickerRobot.DTO.DTOResponse;
 using StickerRobot.Models;
 using StickerRobot.Services.Interfaces;
+using StickerRobot.Utilities;
 
 namespace StickerRobot.Services;
 
@@ -28,7 +29,8 @@ public class StickerItemService : IStickerItemService
                 StickerName = s.StickerName,
                 PositionX = s.PositionX,
                 PositionY = s.PositionY,
-                Scale = s.Scale
+                Scale = s.Scale,
+                RotationDeg = s.RotationDeg
             })
             .ToListAsync();
     }
@@ -46,7 +48,8 @@ public class StickerItemService : IStickerItemService
             StickerName = s.StickerName,
             PositionX = s.PositionX,
             PositionY = s.PositionY,
-            Scale = s.Scale
+            Scale = s.Scale,
+            RotationDeg = s.RotationDeg
         };
     }
 
@@ -56,23 +59,73 @@ public class StickerItemService : IStickerItemService
         {
             return (null, $"DesignTemplate with ID {request.TemplateId} does not exist.");
         }
-        if (await _context.StickerItems.AnyAsync(si => si.TemplateId == request.TemplateId))
+        var duplicate = await _context.StickerItems.FirstOrDefaultAsync(si =>
+            si.TemplateId == request.TemplateId
+            && si.StickerProductId == request.StickerProductId
+            && si.PositionX == request.PositionX
+            && si.PositionY == request.PositionY
+            && si.RotationDeg == request.RotationDeg);
+        if (duplicate != null)
         {
-            return (null, $"StickerItem already exists for DesignTemplate ID {request.TemplateId}.");
+            return (new StickerItemResponse
+            {
+                Id = duplicate.Id,
+                TemplateId = duplicate.TemplateId,
+                StaffId = duplicate.StaffId,
+                StickerProductId = duplicate.StickerProductId,
+                StickerName = duplicate.StickerName,
+                PositionX = duplicate.PositionX,
+                PositionY = duplicate.PositionY,
+                Scale = duplicate.Scale,
+                RotationDeg = duplicate.RotationDeg
+            }, null);
         }
         if (request.StaffId.HasValue && !await _context.Staff.AnyAsync(st => st.Id == request.StaffId))
         {
             return (null, $"Staff with ID {request.StaffId} does not exist.");
         }
 
+        var product = await _context.StickerProducts.AsNoTracking().FirstOrDefaultAsync(p => p.Id == request.StickerProductId);
+        if (product == null || !product.IsActive)
+        {
+            return (null, $"Sticker product {request.StickerProductId} is not on sale.");
+        }
+
+        var phoneCase = await _context.DesignTemplates.AsNoTracking()
+            .Where(dt => dt.Id == request.TemplateId)
+            .Select(dt => dt.Case)
+            .FirstOrDefaultAsync();
+        if (phoneCase?.BackMask == null || phoneCase.BackWidthMm == null || phoneCase.HeightMm == null)
+        {
+            return (null, "This case has no imported 3D model yet.");
+        }
+
+        if (!BackSheetMath.IsRotation(request.RotationDeg))
+        {
+            return (null, "Sticker rotation must be a multiple of 15 degrees.");
+        }
+
+        var fits = BackSheetMath.FootprintFits(
+            request.PositionX!.Value, request.PositionY!.Value,
+            product.WidthMm, product.HeightMm,
+            phoneCase.BackWidthMm.Value, phoneCase.HeightMm.Value,
+            phoneCase.BackMask, phoneCase.MaskCols!.Value, phoneCase.MaskRows!.Value,
+            request.RotationDeg);
+        if (!fits)
+        {
+            return (null, "Sticker footprint is off the case back.");
+        }
+
         var item = new StickerItem
         {
             TemplateId = request.TemplateId,
             StaffId = request.StaffId,
-            StickerName = request.StickerName,
+            StickerProductId = product.Id,
+            StickerName = product.StickerName,
             PositionX = request.PositionX,
             PositionY = request.PositionY,
-            Scale = request.Scale
+            Scale = 1,
+            RotationDeg = request.RotationDeg
         };
 
         _context.StickerItems.Add(item);
@@ -83,10 +136,12 @@ public class StickerItemService : IStickerItemService
             Id = item.Id,
             TemplateId = item.TemplateId,
             StaffId = item.StaffId,
+            StickerProductId = item.StickerProductId,
             StickerName = item.StickerName,
             PositionX = item.PositionX,
             PositionY = item.PositionY,
-            Scale = item.Scale
+            Scale = item.Scale,
+            RotationDeg = item.RotationDeg
         };
 
         return (response, null);
@@ -115,10 +170,12 @@ public class StickerItemService : IStickerItemService
             Id = item.Id,
             TemplateId = item.TemplateId,
             StaffId = item.StaffId,
+            StickerProductId = item.StickerProductId,
             StickerName = item.StickerName,
             PositionX = item.PositionX,
             PositionY = item.PositionY,
-            Scale = item.Scale
+            Scale = item.Scale,
+            RotationDeg = item.RotationDeg
         };
 
         return (response, null);

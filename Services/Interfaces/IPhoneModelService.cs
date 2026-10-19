@@ -9,5 +9,5 @@ public interface IPhoneModelService
     Task<PhoneModelResponse?> GetByIdAsync(int id);
     Task<PhoneModelResponse> CreateAsync(PhoneModelCreateRequest request);
     Task<PhoneModelResponse?> UpdateAsync(int id, PhoneModelUpdateRequest request);
-    Task<bool> DeleteAsync(int id);
+    Task<(bool Found, string? Blocked)> DeleteAsync(int id);
 }

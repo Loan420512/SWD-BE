@@ -10,4 +10,7 @@ public interface IOrderService
     Task<(OrderResponse? Data, string? ErrorMessage)> CreateAsync(OrderCreateRequest request);
     Task<(OrderResponse? Data, string? ErrorMessage)> UpdateAsync(int id, OrderUpdateRequest request);
     Task<bool> DeleteAsync(int id);
+    Task<IEnumerable<AdminOrderResponse>> GetAdminListAsync();
+    Task<PublicOrderResponse?> GetByCodeAsync(string orderCode);
+    Task<(bool Found, string? ErrorMessage)> SetStatusAsync(int id, string status);
 }

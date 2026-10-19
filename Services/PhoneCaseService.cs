@@ -117,13 +117,20 @@ public class PhoneCaseService : IPhoneCaseService
         return (response, null);
     }
 
-    public async Task<bool> DeleteAsync(int id)
+    public async Task<(bool Found, string? Blocked)> DeleteAsync(int id)
     {
         var phoneCase = await _context.PhoneCases.FindAsync(id);
-        if (phoneCase == null) return false;
+        if (phoneCase == null) return (false, null);
+
+        var inOrder = await _context.Orders.AnyAsync(order => order.PhoneCaseId == id);
+        var inTemplate = await _context.DesignTemplates.AnyAsync(template => template.CaseId == id);
+        if (inOrder || inTemplate)
+        {
+            return (true, "Ốp này đang nằm trong đơn hàng hoặc bản thiết kế, nên không xoá được.");
+        }
 
         _context.PhoneCases.Remove(phoneCase);
         await _context.SaveChangesAsync();
-        return true;
+        return (true, null);
     }
 }
