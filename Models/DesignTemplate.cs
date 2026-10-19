@@ -25,5 +25,5 @@ public partial class DesignTemplate
 
     public virtual Staff? Staff { get; set; }
 
-    public virtual StickerItem? StickerItem { get; set; }
+    public virtual ICollection<StickerItem> StickerItems { get; set; } = new List<StickerItem>();
 }

@@ -382,7 +382,7 @@ public partial class StickerRobotDbContext : DbContext
 
             entity.ToTable("STICKER_ITEM");
 
-            entity.HasIndex(e => e.TemplateId, "UQ__STICKER___BE44E0782C9B8BF8").IsUnique();
+            entity.HasIndex(e => e.TemplateId, "IX_STICKER_ITEM_TEMPLATE");
 
             entity.Property(e => e.Id).HasColumnName("id");
             entity.Property(e => e.PositionX).HasColumnName("position_x");
@@ -398,8 +398,8 @@ public partial class StickerRobotDbContext : DbContext
                 .HasForeignKey(d => d.StaffId)
                 .HasConstraintName("FK_STICKER_STAFF");
 
-            entity.HasOne(d => d.Template).WithOne(p => p.StickerItem)
-                .HasForeignKey<StickerItem>(d => d.TemplateId)
+            entity.HasOne(d => d.Template).WithMany(p => p.StickerItems)
+                .HasForeignKey(d => d.TemplateId)
                 .OnDelete(DeleteBehavior.ClientSetNull)
                 .HasConstraintName("FK_STICKER_TEMPLATE");
         });

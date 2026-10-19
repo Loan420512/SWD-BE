@@ -19,6 +19,8 @@ public partial class StickerItem
 
     public double? Scale { get; set; }
 
+    public int RotationDeg { get; set; }
+
     public virtual Staff? Staff { get; set; }
 
     public virtual DesignTemplate Template { get; set; } = null!;
