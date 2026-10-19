@@ -1,4 +1,6 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using StickerRobot.Constants;
 using StickerRobot.DTO.DTORequest;
 using StickerRobot.DTO.DTOResponse;
 using StickerRobot.Services.Interfaces;
@@ -12,10 +14,12 @@ namespace StickerRobot.Controllers;
 public class PhoneCasesController : ControllerBase
 {
     private readonly IPhoneCaseService _phoneCaseService;
+    private readonly ICatalogService _catalog;
 
-    public PhoneCasesController(IPhoneCaseService phoneCaseService)
+    public PhoneCasesController(IPhoneCaseService phoneCaseService, ICatalogService catalog)
     {
         _phoneCaseService = phoneCaseService;
+        _catalog = catalog;
     }
 
     [HttpGet]
@@ -41,6 +45,7 @@ public class PhoneCasesController : ControllerBase
     }
 
     [HttpPost]
+    [Authorize(Roles = AuthRoles.CatalogAdmins)]
     [ProducesResponseType(typeof(ApiResponse<PhoneCaseResponse>), StatusCodes.Status201Created)]
     [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status400BadRequest)]
     public async Task<IActionResult> Create([FromBody] PhoneCaseCreateRequest request)
@@ -60,6 +65,7 @@ public class PhoneCasesController : ControllerBase
     }
 
     [HttpPut("{id}")]
+    [Authorize(Roles = AuthRoles.CatalogAdmins)]
     [ProducesResponseType(typeof(ApiResponse<PhoneCaseResponse>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status404NotFound)]
@@ -84,16 +90,37 @@ public class PhoneCasesController : ControllerBase
     }
 
     [HttpDelete("{id}")]
+    [Authorize(Roles = AuthRoles.CatalogAdmins)]
     [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status409Conflict)]
     public async Task<IActionResult> Delete(int id)
     {
-        var deleted = await _phoneCaseService.DeleteAsync(id);
-        if (!deleted)
+        var (found, blocked) = await _phoneCaseService.DeleteAsync(id);
+        if (!found)
         {
             return NotFound(ApiResponse<object>.ErrorResponse($"PhoneCase with ID {id} not found."));
         }
 
+        if (blocked != null)
+        {
+            return Conflict(ApiResponse<object>.ErrorResponse(blocked));
+        }
+
         return Ok(ApiResponse<object>.SuccessResponse(null!, "PhoneCase deleted successfully."));
+    }
+
+    /// <summary>Saves the imported GLB and its orientation for this PhoneCase.</summary>
+    [HttpPut("{id}/fit")]
+    [Authorize(Roles = AuthRoles.CatalogAdmins)]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> SetFit(int id, [FromBody] PhoneCaseFitRequest request)
+    {
+        var (found, error) = await _catalog.SetCaseFitAsync(id, request);
+        if (!found) return NotFound(ApiResponse<object>.ErrorResponse("PhoneCase " + id + " not found."));
+        if (error != null) return BadRequest(ApiResponse<object>.ErrorResponse(error));
+        return Ok(ApiResponse<object>.SuccessResponse(null!, "Fit saved."));
     }
 }

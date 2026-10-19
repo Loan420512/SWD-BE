@@ -1,4 +1,6 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using StickerRobot.Constants;
 using StickerRobot.DTO.DTORequest;
 using StickerRobot.DTO.DTOResponse;
 using StickerRobot.Services.Interfaces;
@@ -12,10 +14,12 @@ namespace StickerRobot.Controllers;
 public class PhoneModelsController : ControllerBase
 {
     private readonly IPhoneModelService _phoneModelService;
+    private readonly ICatalogService _catalog;
 
-    public PhoneModelsController(IPhoneModelService phoneModelService)
+    public PhoneModelsController(IPhoneModelService phoneModelService, ICatalogService catalog)
     {
         _phoneModelService = phoneModelService;
+        _catalog = catalog;
     }
 
     [HttpGet]
@@ -41,6 +45,7 @@ public class PhoneModelsController : ControllerBase
     }
 
     [HttpPost]
+    [Authorize(Roles = AuthRoles.CatalogAdmins)]
     [ProducesResponseType(typeof(ApiResponse<PhoneModelResponse>), StatusCodes.Status201Created)]
     [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status400BadRequest)]
     public async Task<IActionResult> Create([FromBody] PhoneModelCreateRequest request)
@@ -55,6 +60,7 @@ public class PhoneModelsController : ControllerBase
     }
 
     [HttpPut("{id}")]
+    [Authorize(Roles = AuthRoles.CatalogAdmins)]
     [ProducesResponseType(typeof(ApiResponse<PhoneModelResponse>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status404NotFound)]
@@ -75,16 +81,37 @@ public class PhoneModelsController : ControllerBase
     }
 
     [HttpDelete("{id}")]
+    [Authorize(Roles = AuthRoles.CatalogAdmins)]
     [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status409Conflict)]
     public async Task<IActionResult> Delete(int id)
     {
-        var deleted = await _phoneModelService.DeleteAsync(id);
-        if (!deleted)
+        var (found, blocked) = await _phoneModelService.DeleteAsync(id);
+        if (!found)
         {
             return NotFound(ApiResponse<object>.ErrorResponse($"PhoneModel with ID {id} not found."));
         }
 
+        if (blocked != null)
+        {
+            return Conflict(ApiResponse<object>.ErrorResponse(blocked));
+        }
+
         return Ok(ApiResponse<object>.SuccessResponse(null!, "PhoneModel deleted successfully."));
+    }
+
+    /// <summary>Saves the imported GLB and its orientation for this PhoneModel.</summary>
+    [HttpPut("{id}/fit")]
+    [Authorize(Roles = AuthRoles.CatalogAdmins)]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> SetFit(int id, [FromBody] PhoneModelFitRequest request)
+    {
+        var (found, error) = await _catalog.SetModelFitAsync(id, request);
+        if (!found) return NotFound(ApiResponse<object>.ErrorResponse("PhoneModel " + id + " not found."));
+        if (error != null) return BadRequest(ApiResponse<object>.ErrorResponse(error));
+        return Ok(ApiResponse<object>.SuccessResponse(null!, "Fit saved."));
     }
 }

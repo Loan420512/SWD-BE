@@ -1,4 +1,6 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using StickerRobot.Constants;
 using StickerRobot.DTO.DTORequest;
 using StickerRobot.DTO.DTOResponse;
 using StickerRobot.Services.Interfaces;
@@ -9,6 +11,7 @@ namespace StickerRobot.Controllers;
 [ApiController]
 [Route("api/[controller]")]
 [Produces("application/json")]
+[Authorize(Roles = AuthRoles.CatalogAdmins)]
 public class RefundTransactionsController : ControllerBase
 {
     private readonly IRefundTransactionService _refundTransactionService;

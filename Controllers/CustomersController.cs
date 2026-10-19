@@ -1,4 +1,6 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using StickerRobot.Constants;
 using StickerRobot.DTO.DTORequest;
 using StickerRobot.DTO.DTOResponse;
 using StickerRobot.Services.Interfaces;
@@ -19,6 +21,7 @@ public class CustomersController : ControllerBase
     }
 
     [HttpGet]
+    [Authorize(Roles = AuthRoles.CatalogAdmins)]
     [ProducesResponseType(typeof(ApiResponse<IEnumerable<CustomerResponse>>), StatusCodes.Status200OK)]
     public async Task<IActionResult> GetAll()
     {
@@ -27,6 +30,7 @@ public class CustomersController : ControllerBase
     }
 
     [HttpGet("{id}")]
+    [Authorize(Roles = AuthRoles.CatalogAdmins)]
     [ProducesResponseType(typeof(ApiResponse<CustomerResponse>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status404NotFound)]
     public async Task<IActionResult> GetById(int id)
@@ -55,6 +59,7 @@ public class CustomersController : ControllerBase
     }
 
     [HttpPut("{id}")]
+    [Authorize(Roles = AuthRoles.CatalogAdmins)]
     [ProducesResponseType(typeof(ApiResponse<CustomerResponse>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status404NotFound)]
@@ -75,6 +80,7 @@ public class CustomersController : ControllerBase
     }
 
     [HttpDelete("{id}")]
+    [Authorize(Roles = AuthRoles.CatalogAdmins)]
     [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status404NotFound)]
     public async Task<IActionResult> Delete(int id)

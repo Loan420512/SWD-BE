@@ -1,4 +1,6 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using StickerRobot.Constants;
 using StickerRobot.DTO.DTORequest;
 using StickerRobot.DTO.DTOResponse;
 using StickerRobot.Services.Interfaces;
@@ -19,14 +21,41 @@ public class OrdersController : ControllerBase
     }
 
     [HttpGet]
-    [ProducesResponseType(typeof(ApiResponse<IEnumerable<OrderResponse>>), StatusCodes.Status200OK)]
+    [Authorize(Roles = AuthRoles.CatalogAdmins)]
+    [ProducesResponseType(typeof(ApiResponse<IEnumerable<AdminOrderResponse>>), StatusCodes.Status200OK)]
     public async Task<IActionResult> GetAll()
     {
-        var orders = await _orderService.GetAllAsync();
-        return Ok(ApiResponse<IEnumerable<OrderResponse>>.SuccessResponse(orders));
+        var orders = await _orderService.GetAdminListAsync();
+        return Ok(ApiResponse<IEnumerable<AdminOrderResponse>>.SuccessResponse(orders));
+    }
+
+    /// <summary>Public lookup by order code. No customer contact data.</summary>
+    [HttpGet("by-code/{code}")]
+    [ProducesResponseType(typeof(ApiResponse<PublicOrderResponse>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> GetByCode(string code)
+    {
+        var order = await _orderService.GetByCodeAsync(code.Trim().ToUpperInvariant());
+        if (order == null) return NotFound(ApiResponse<object>.ErrorResponse($"Order {code} not found."));
+        return Ok(ApiResponse<PublicOrderResponse>.SuccessResponse(order));
+    }
+
+    /// <summary>Pending to Processing or Cancelled; Processing to Completed or Cancelled.</summary>
+    [HttpPut("{id}/status")]
+    [Authorize(Roles = AuthRoles.CatalogAdmins)]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> SetStatus(int id, [FromBody] OrderStatusRequest request)
+    {
+        var (found, error) = await _orderService.SetStatusAsync(id, request.Status);
+        if (!found) return NotFound(ApiResponse<object>.ErrorResponse($"Order {id} not found."));
+        if (error != null) return BadRequest(ApiResponse<object>.ErrorResponse(error));
+        return Ok(ApiResponse<object>.SuccessResponse(null!, "Status updated."));
     }
 
     [HttpGet("{id}")]
+    [Authorize(Roles = AuthRoles.CatalogAdmins)]
     [ProducesResponseType(typeof(ApiResponse<OrderResponse>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status404NotFound)]
     public async Task<IActionResult> GetById(int id)
@@ -60,6 +89,7 @@ public class OrdersController : ControllerBase
     }
 
     [HttpPut("{id}")]
+    [Authorize(Roles = AuthRoles.CatalogAdmins)]
     [ProducesResponseType(typeof(ApiResponse<OrderResponse>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status404NotFound)]
@@ -84,6 +114,7 @@ public class OrdersController : ControllerBase
     }
 
     [HttpDelete("{id}")]
+    [Authorize(Roles = AuthRoles.CatalogAdmins)]
     [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status404NotFound)]
     public async Task<IActionResult> Delete(int id)
