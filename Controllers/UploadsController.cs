@@ -1,15 +1,21 @@
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using StickerRobot.Constants;
+using StickerRobot.DTO.DTORequest;
 using StickerRobot.DTO.DTOResponse;
 using StickerRobot.Utilities;
 
 namespace StickerRobot.Controllers;
 
+/// <summary>
+/// Tải lên tệp mô hình 3D (GLB) và hình ảnh sticker (PNG, WebP).
+/// </summary>
 [ApiController]
 [Route("api/[controller]")]
 [Produces("application/json")]
 [Authorize(Roles = AuthRoles.CatalogAdmins)]
+[Tags("Uploads")]
 public class UploadsController : ControllerBase
 {
     private const long ModelLimit = 25 * 1024 * 1024;
@@ -24,17 +30,42 @@ public class UploadsController : ControllerBase
         _env = env;
     }
 
-    /// <summary>Stores a phone GLB, case GLB, or sticker PNG/WebP and returns its site path.</summary>
+    /// <summary>
+    /// Tải lên tệp mô hình 3D (.glb) hoặc ảnh sticker (.png, .webp)
+    /// </summary>
+    /// <remarks>
+    /// Tiếp nhận tệp nhị phân thông qua giao thức multipart/form-data và lưu vào thư mục tĩnh wwwroot/uploads/{kind}/.
+    /// - **phone**: Tệp mô hình 3D điện thoại dạng GLB (tối đa 25MB).
+    /// - **case**: Tệp mô hình 3D ốp lưng dạng GLB (tối đa 25MB).
+    /// - **sticker**: Tệp ảnh sticker dạng PNG hoặc WebP trong suốt (tối đa 8MB).
+    /// Yêu cầu quyền: Quản trị viên (Manager hoặc SuperAdmin).
+    /// </remarks>
+    /// <param name="request">Thông tin tệp nhị phân và phân loại tài nguyên.</param>
+    /// <response code="201">Tải lên tệp thành công, trả về đường dẫn URL tĩnh.</response>
+    /// <response code="400">Tệp không hợp lệ (sai định dạng, quá giới hạn dung lượng hoặc sai phân loại kind).</response>
+    /// <response code="401">Chưa xác thực hoặc token không hợp lệ.</response>
+    /// <response code="403">Không có quyền truy cập.</response>
     [HttpPost]
     [Consumes("multipart/form-data")]
     [RequestSizeLimit(ModelLimit + 1024 * 1024)]
+    [EndpointSummary("Tải lên tệp mô hình 3D hoặc hình ảnh sticker")]
     [ProducesResponseType(typeof(ApiResponse<UploadResponse>), StatusCodes.Status201Created)]
     [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status400BadRequest)]
-    public async Task<IActionResult> Upload(IFormFile file, [FromForm] string kind)
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status403Forbidden)]
+    public async Task<IActionResult> Upload([FromForm] FileUploadRequest request)
     {
+        var file = request.File;
+        var kind = request.Kind;
+
+        if (file == null || file.Length == 0)
+        {
+            return BadRequest(ApiResponse<object>.ErrorResponse("Tệp tin tải lên không được để trống."));
+        }
+
         if (kind is not ("phone" or "case" or "sticker"))
         {
-            return BadRequest(ApiResponse<object>.ErrorResponse("kind must be phone, case, or sticker."));
+            return BadRequest(ApiResponse<object>.ErrorResponse("Tham số kind bắt buộc phải là 'phone', 'case', hoặc 'sticker'."));
         }
 
         var head = new byte[12];
@@ -69,6 +100,6 @@ public class UploadsController : ControllerBase
         }
 
         var url = $"/uploads/{kind}/{name}";
-        return Created(url, ApiResponse<UploadResponse>.SuccessResponse(new UploadResponse { Url = url }, "Uploaded."));
+        return Created(url, ApiResponse<UploadResponse>.SuccessResponse(new UploadResponse { Url = url }, "Tải lên tệp thành công."));
     }
 }

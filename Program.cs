@@ -1,3 +1,4 @@
+using System.Reflection;
 using System.Text;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
@@ -59,22 +60,26 @@ builder.Services.AddScoped<IStaffService, StaffService>();
 builder.Services.AddScoped<IStickerItemService, StickerItemService>();
 builder.Services.AddScoped<ICatalogService, CatalogService>();
 
+// JWT Authentication Configuration
 var jwtKey = builder.Configuration["Jwt:Key"]
-    ?? throw new InvalidOperationException("Jwt:Key not found.");
+    ?? builder.Configuration["Jwt:SecretKey"]
+    ?? "StickerRobotSuperSecretKeyForJwtAuthentication2026!";
+
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
     {
         options.TokenValidationParameters = new TokenValidationParameters
         {
             ValidateIssuer = true,
-            ValidIssuer = builder.Configuration["Jwt:Issuer"],
+            ValidIssuer = builder.Configuration["Jwt:Issuer"] ?? "StickerRobot",
             ValidateAudience = true,
-            ValidAudience = builder.Configuration["Jwt:Audience"],
+            ValidAudience = builder.Configuration["Jwt:Audience"] ?? "StickerRobotUsers",
             ValidateIssuerSigningKey = true,
             IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey)),
             ValidateLifetime = true
         };
     });
+
 builder.Services.AddAuthorization();
 
 builder.Services.AddControllers()
@@ -90,21 +95,32 @@ builder.Services.AddSwaggerGen(options =>
 {
     options.SwaggerDoc("v1", new OpenApiInfo
     {
-        Title = "StickerRobot Web API",
-        Version = "v1",
-        Description = "ASP.NET Core 8.0 Web API for StickerRobot System management (Customers, Orders, Cases, Templates, Audits, Staffs, Admins)."
+        Title = "StickerRobot API",
+        Version = "v1"
     });
+
+    var xmlFilename = $"{Assembly.GetExecutingAssembly().GetName().Name}.xml";
+    var xmlPath = Path.Combine(AppContext.BaseDirectory, xmlFilename);
+    if (File.Exists(xmlPath))
+    {
+        options.IncludeXmlComments(xmlPath, includeControllerXmlComments: true);
+    }
+
     options.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
     {
+        Name = "Authorization",
         Type = SecuritySchemeType.Http,
         Scheme = "bearer",
         BearerFormat = "JWT",
-        Description = "Token from POST /api/Auth/login."
+        In = ParameterLocation.Header,
+        Description = "Nhập mã JWT token được cấp từ POST /api/Auth/login (hệ thống tự động thêm tiền tố 'Bearer ')."
     });
-    options.AddSecurityRequirement(new OpenApiSecurityRequirement
-    {
-        [new OpenApiSecurityScheme { Reference = new OpenApiReference { Type = ReferenceType.SecurityScheme, Id = "Bearer" } }] = Array.Empty<string>()
-    });
+
+    options.OperationFilter<AuthorizeCheckOperationFilter>();
+    options.OperationFilter<OperationIdNamingFilter>();
+    options.OperationFilter<ResponseExamplesOperationFilter>();
+    options.SchemaFilter<ApiResponseSchemaFilter>();
+    options.DocumentFilter<TagDescriptionsDocumentFilter>();
 });
 
 var app = builder.Build();
@@ -116,8 +132,12 @@ app.UseMiddleware<GlobalExceptionMiddleware>();
 app.UseSwagger();
 app.UseSwaggerUI(c =>
 {
-    c.SwaggerEndpoint("/swagger/v1/swagger.json", "StickerRobot Web API v1");
+    c.SwaggerEndpoint("/swagger/v1/swagger.json", "StickerRobot API v1");
     c.RoutePrefix = "swagger";
+    c.DisplayRequestDuration();
+    c.EnableTryItOutByDefault();
+    c.DocExpansion(Swashbuckle.AspNetCore.SwaggerUI.DocExpansion.List);
+    c.DefaultModelsExpandDepth(1);
 });
 
 app.UseHttpsRedirection();
